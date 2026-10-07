@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor folders
+.vscode/
+.idea/
+
+# Newman HTML and JSON reports are intentionally tracked in /reports
+# Do NOT add reports/*.html or reports/*.json here
+
+# Logs
+*.log
+npm-debug.log*
