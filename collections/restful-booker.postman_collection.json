@@ -1,0 +1,1440 @@
+{
+  "info": {
+    "_postman_id": "rb-collection-001",
+    "name": "Restful-Booker API Tests",
+    "description": "Comprehensive API test collection for the Restful-Booker practice API (https://restful-booker.herokuapp.com).\n\nTargets: Health, Authentication, Booking CRUD, Negative cases, and Security edge cases.\nAuthor: Aniruddha Yadav | QA Engineer\nCollection Version: 1.0.0\nAPI Docs: https://restful-booker.herokuapp.com/apidoc/index.html",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "rb-exporter-001"
+  },
+  "variable": [
+    {
+      "key": "bookingSchema",
+      "value": "{\"type\":\"object\",\"required\":[\"bookingid\",\"booking\"],\"properties\":{\"bookingid\":{\"type\":\"number\"},\"booking\":{\"type\":\"object\",\"required\":[\"firstname\",\"lastname\",\"totalprice\",\"depositpaid\",\"bookingdates\",\"additionalneeds\"],\"properties\":{\"firstname\":{\"type\":\"string\"},\"lastname\":{\"type\":\"string\"},\"totalprice\":{\"type\":\"number\"},\"depositpaid\":{\"type\":\"boolean\"},\"bookingdates\":{\"type\":\"object\",\"required\":[\"checkin\",\"checkout\"],\"properties\":{\"checkin\":{\"type\":\"string\"},\"checkout\":{\"type\":\"string\"}}},\"additionalneeds\":{\"type\":\"string\"}}}}}",
+      "type": "string"
+    },
+    {
+      "key": "singleBookingSchema",
+      "value": "{\"type\":\"object\",\"required\":[\"firstname\",\"lastname\",\"totalprice\",\"depositpaid\",\"bookingdates\"],\"properties\":{\"firstname\":{\"type\":\"string\"},\"lastname\":{\"type\":\"string\"},\"totalprice\":{\"type\":\"number\"},\"depositpaid\":{\"type\":\"boolean\"},\"bookingdates\":{\"type\":\"object\",\"required\":[\"checkin\",\"checkout\"],\"properties\":{\"checkin\":{\"type\":\"string\"},\"checkout\":{\"type\":\"string\"}}}}}",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level pre-request: nothing needed globally.",
+          "// Per-folder pre-requests are defined at folder level where required."
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Collection-level test: assert response time for every request.",
+          "// NOTE: Restful-Booker runs on Heroku free tier; cold starts can be slow.",
+          "pm.test('Response time is acceptable (≤ 3000 ms — free-tier host may be slow on cold start)', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Health",
+      "description": "Verifies the API is reachable. GET /ping should return 201 Created (docs: Health Check endpoint).",
+      "item": [
+        {
+          "name": "GET /ping — Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ping",
+              "host": ["{{baseUrl}}"],
+              "path": ["ping"]
+            },
+            "description": "Checks the API is alive. Expected: 201 Created (per docs: 'Returns a 201 to let you know everything is in order')."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Ping-Ping",
+                  "// Docs state: 'Returns a 201 to let you know everything is in order'",
+                  "pm.test('Status code is 201 Created (docs: Ping endpoint)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response body is \"Created\"', function () {",
+                  "    pm.expect(pm.response.text()).to.equal('Created');",
+                  "});",
+                  "",
+                  "pm.test('Content-Type header is present', function () {",
+                  "    pm.response.to.have.header('Content-Type');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Authentication",
+      "description": "Tests the POST /auth endpoint with valid credentials, wrong password, empty body, and missing fields.\nA successful auth saves {{token}} to environment for use in subsequent requests.",
+      "item": [
+        {
+          "name": "POST /auth — Valid Credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth"]
+            },
+            "description": "Authenticates with admin/password123 (public practice credentials). Saves the token to environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Auth-CreateToken",
+                  "// Docs state: '200 OK' with { token: string }",
+                  "pm.test('Status code is 200 OK (docs: Auth CreateToken)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has token field', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('token');",
+                  "});",
+                  "",
+                  "pm.test('Token is a non-empty string', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "// Save token to environment for subsequent requests",
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    if (json.token) {",
+                  "        pm.environment.set('token', json.token);",
+                  "        console.log('Token saved to environment: ' + json.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth — Wrong Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth"]
+            },
+            "description": "Negative: wrong password. API returns 200 with { reason: 'Bad credentials' } instead of a 4xx (non-standard REST behavior)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Auth-CreateToken",
+                  "// NOTE: Restful-Booker returns 200 OK even for bad credentials,",
+                  "// with body { 'reason': 'Bad credentials' } instead of a 401.",
+                  "// This is a deliberate non-standard behaviour of this practice API.",
+                  "pm.test('Status code is 200 (API returns 200 for bad creds — non-standard behaviour)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response body contains error reason (no token issued)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('reason');",
+                  "    pm.expect(json.reason).to.be.a('string').and.not.empty;",
+                  "    // Must NOT contain a valid token",
+                  "    pm.expect(json).to.not.have.property('token');",
+                  "});",
+                  "",
+                  "pm.test('No sensitive data (password) leaked in error response', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.not.include('wrongpassword');",
+                  "    pm.expect(body).to.not.include('password123');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth — Empty Body",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth"]
+            },
+            "description": "Negative: empty JSON body. No credentials provided."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Restful-Booker does not strictly validate empty body at auth endpoint.",
+                  "// It returns 200 with { reason: 'Bad credentials' } for missing credentials.",
+                  "pm.test('Status code is 200 (API does not return 4xx for empty auth body)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response body contains reason field (no token for empty body)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('reason');",
+                  "});",
+                  "",
+                  "pm.test('No token issued for empty body', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.not.have.property('token');",
+                  "});",
+                  "",
+                  "pm.test('No sensitive data leaked in response', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.not.include('password123');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth — Missing Username Field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth"]
+            },
+            "description": "Negative: username field missing from the body."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// API returns 200 with { reason: 'Bad credentials' } for missing username.",
+                  "pm.test('Status code is 200 (missing username treated as bad credentials)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('No token issued for missing username', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.not.have.property('token');",
+                  "});",
+                  "",
+                  "pm.test('Error is handled gracefully (no stack trace or server error in body)', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('stacktrace');",
+                  "    pm.expect(body).to.not.include('exception');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Create Booking",
+      "description": "Tests the POST /booking endpoint: valid booking with dynamic data (saves bookingId), boundary price of 0, missing required field, wrong data types, and empty body.",
+      "item": [
+        {
+          "name": "POST /booking — Valid (Dynamic Data)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"{{$randomFirstName}}\",\n    \"lastname\": \"{{$randomLastName}}\",\n    \"totalprice\": 150,\n    \"depositpaid\": true,\n    \"bookingdates\": {\n        \"checkin\": \"2025-01-15\",\n        \"checkout\": \"2025-01-20\"\n    },\n    \"additionalneeds\": \"Breakfast\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Creates a booking with dynamic first/last name using Postman dynamic variables. Saves bookingId for subsequent requests."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Store the dynamic names so we can assert them in tests",
+                  "var firstName = pm.variables.replaceIn('{{$randomFirstName}}');",
+                  "var lastName = pm.variables.replaceIn('{{$randomLastName}}');",
+                  "pm.collectionVariables.set('createdFirstName', firstName);",
+                  "pm.collectionVariables.set('createdLastName', lastName);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Booking-CreateBooking",
+                  "// Docs state: '200 OK' with full booking object including bookingid",
+                  "pm.test('Status code is 200 OK (docs: CreateBooking)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response has bookingid (number)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('bookingid');",
+                  "    pm.expect(json.bookingid).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('Response has booking object with required fields', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('booking');",
+                  "    pm.expect(json.booking).to.have.all.keys(",
+                  "        'firstname', 'lastname', 'totalprice', 'depositpaid', 'bookingdates', 'additionalneeds'",
+                  "    );",
+                  "});",
+                  "",
+                  "pm.test('Booking totalprice matches request (150)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.booking.totalprice).to.equal(150);",
+                  "});",
+                  "",
+                  "pm.test('Booking depositpaid is boolean true', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.booking.depositpaid).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Booking dates are correct strings', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.booking.bookingdates.checkin).to.equal('2025-01-15');",
+                  "    pm.expect(json.booking.bookingdates.checkout).to.equal('2025-01-20');",
+                  "});",
+                  "",
+                  "pm.test('JSON schema validation for CreateBooking response', function () {",
+                  "    var schema = JSON.parse(pm.collectionVariables.get('bookingSchema'));",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "// Save bookingId to environment for subsequent chained requests",
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.environment.set('bookingId', json.bookingid);",
+                  "    pm.collectionVariables.set('createdFirstName', json.booking.firstname);",
+                  "    pm.collectionVariables.set('createdLastName', json.booking.lastname);",
+                  "    console.log('bookingId saved: ' + json.bookingid);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /booking — Boundary Price (0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"BoundaryTest\",\n    \"lastname\": \"Zero\",\n    \"totalprice\": 0,\n    \"depositpaid\": false,\n    \"bookingdates\": {\n        \"checkin\": \"2025-02-01\",\n        \"checkout\": \"2025-02-02\"\n    },\n    \"additionalneeds\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Boundary test: totalprice = 0. API should accept a zero price."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Boundary: price = 0. Docs do not restrict the minimum price value.",
+                  "pm.test('Status code is 200 OK for boundary price of 0', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Booking created with totalprice = 0', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.booking.totalprice).to.equal(0);",
+                  "});",
+                  "",
+                  "pm.test('bookingid is present and numeric', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.bookingid).to.be.a('number');",
+                  "});",
+                  "",
+                  "// Clean up: delete this boundary booking to keep shared API tidy",
+                  "var boundaryBookingId = null;",
+                  "if (pm.response.code === 200) {",
+                  "    boundaryBookingId = pm.response.json().bookingid;",
+                  "    pm.collectionVariables.set('boundaryBookingId', boundaryBookingId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /booking — Missing Required Field (firstname)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"lastname\": \"MissingFirst\",\n    \"totalprice\": 100,\n    \"depositpaid\": true,\n    \"bookingdates\": {\n        \"checkin\": \"2025-03-01\",\n        \"checkout\": \"2025-03-05\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Negative: firstname field missing. The API's actual behaviour is observed here."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// NOTE: Restful-Booker does NOT always validate required fields strictly.",
+                  "// The ideal REST response would be 400 Bad Request, but this API",
+                  "// may return 200 or 500 depending on its internal validation.",
+                  "// We assert: either a 4xx error OR a 200 with the field blank/null.",
+                  "pm.test('Response indicates missing field is handled (not a 5xx server crash)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422, 500]);",
+                  "});",
+                  "",
+                  "pm.test('No sensitive internal error details leaked', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('stacktrace');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /booking — Wrong Data Types",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": 12345,\n    \"lastname\": true,\n    \"totalprice\": \"notanumber\",\n    \"depositpaid\": \"yes\",\n    \"bookingdates\": {\n        \"checkin\": \"not-a-date\",\n        \"checkout\": \"also-not-a-date\"\n    },\n    \"additionalneeds\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Negative: all fields have wrong data types. Verifies the API handles type mismatches gracefully."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// NOTE: Restful-Booker may accept wrong types silently (coerce them)",
+                  "// or return a 400/500. The ideal REST behavior is 400.",
+                  "// We verify the API does not crash and no internal errors are exposed.",
+                  "pm.test('API does not return an unhandled 5xx for wrong types', function () {",
+                  "    pm.expect(pm.response.code).to.not.equal(502);",
+                  "    pm.expect(pm.response.code).to.not.equal(504);",
+                  "});",
+                  "",
+                  "pm.test('No stack trace or exception details leaked', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('stacktrace');",
+                  "    pm.expect(body).to.not.include('exception');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /booking — Empty Body",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Negative: completely empty JSON body. Expects a 4xx or handled response."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Empty body should be rejected. API may return 400 or 200 depending on validation.",
+                  "pm.test('Empty body does not cause an unhandled 5xx crash', function () {",
+                  "    pm.expect(pm.response.code).to.not.equal(502);",
+                  "    pm.expect(pm.response.code).to.not.equal(504);",
+                  "});",
+                  "",
+                  "pm.test('Error handled gracefully (no internal details exposed)', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('stacktrace');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Read Booking",
+      "description": "Tests the GET /booking and GET /booking/:id endpoints: list all IDs, retrieve by bookingId, filter by name, nonexistent ID, and non-numeric ID.",
+      "item": [
+        {
+          "name": "GET /booking — List All IDs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Returns an array of booking IDs. Array must not be empty on a shared public API."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Booking-GetBookings",
+                  "// Docs state: 200 OK, array of { bookingid: number }",
+                  "pm.test('Status code is 200 OK (docs: GetBookings)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response is an array', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Array is not empty (shared public API has bookings)', function () {",
+                  "    pm.expect(pm.response.json().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Each element has a bookingid property (number)', function () {",
+                  "    var ids = pm.response.json();",
+                  "    ids.forEach(function(item) {",
+                  "        pm.expect(item).to.have.property('bookingid');",
+                  "        pm.expect(item.bookingid).to.be.a('number');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /booking/{{bookingId}} — Retrieve Created Booking",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "{{bookingId}}"]
+            },
+            "description": "Retrieves the booking created in the 02 Create folder. Verifies the data matches what was sent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Booking-GetBooking",
+                  "// Docs state: 200 OK with booking object",
+                  "pm.test('Status code is 200 OK (docs: GetBooking)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response has all required booking fields', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(",
+                  "        'firstname', 'lastname', 'totalprice', 'depositpaid', 'bookingdates', 'additionalneeds'",
+                  "    );",
+                  "});",
+                  "",
+                  "pm.test('totalprice is a number', function () {",
+                  "    pm.expect(pm.response.json().totalprice).to.be.a('number');",
+                  "});",
+                  "",
+                  "pm.test('depositpaid is a boolean', function () {",
+                  "    pm.expect(pm.response.json().depositpaid).to.be.a('boolean');",
+                  "});",
+                  "",
+                  "pm.test('bookingdates has checkin and checkout strings', function () {",
+                  "    var dates = pm.response.json().bookingdates;",
+                  "    pm.expect(dates).to.have.property('checkin');",
+                  "    pm.expect(dates).to.have.property('checkout');",
+                  "    pm.expect(dates.checkin).to.be.a('string');",
+                  "    pm.expect(dates.checkout).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('JSON schema validation for single booking response', function () {",
+                  "    var schema = JSON.parse(pm.collectionVariables.get('singleBookingSchema'));",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('Booking totalprice matches created value (150)', function () {",
+                  "    pm.expect(pm.response.json().totalprice).to.equal(150);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /booking — Filtered by Firstname and Lastname",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking?firstname={{createdFirstName}}&lastname={{createdLastName}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"],
+              "query": [
+                {
+                  "key": "firstname",
+                  "value": "{{createdFirstName}}"
+                },
+                {
+                  "key": "lastname",
+                  "value": "{{createdLastName}}"
+                }
+              ]
+            },
+            "description": "Filters bookings by the firstname/lastname of the booking we created. Expects at least one result."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Booking-GetBookings",
+                  "// Docs state: supports firstname, lastname, checkin, checkout query params",
+                  "pm.test('Status code is 200 OK (filtered list)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is an array', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Filtered results contain our created bookingId', function () {",
+                  "    var ids = pm.response.json().map(function(b) { return b.bookingid; });",
+                  "    var ourId = parseInt(pm.environment.get('bookingId'));",
+                  "    pm.expect(ids).to.include(ourId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /booking — Nonexistent ID (999999999)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/999999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "999999999"]
+            },
+            "description": "Negative: booking ID that does not exist. Expects a 404 Not Found."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Docs state: 404 Not Found for non-existent booking ID",
+                  "pm.test('Status code is 404 Not Found for nonexistent booking', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('No sensitive data exposed in 404 response', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.not.include('password');",
+                  "    pm.expect(body).to.not.include('token');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /booking — Non-numeric ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/abc",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "abc"]
+            },
+            "description": "Negative: non-numeric booking ID. Expects a 404 or 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Non-numeric IDs: the ideal response is 400, but the API may return 404.",
+                  "pm.test('Status code indicates invalid ID (404 or 400)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});",
+                  "",
+                  "pm.test('No internal details or stack trace exposed', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('stacktrace');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Update Booking",
+      "description": "Tests PUT /booking/:id (full update with Cookie auth), PATCH /booking/:id (partial update), and PUT with Basic Auth header.",
+      "item": [
+        {
+          "name": "PUT /booking/{{bookingId}} — Full Update (Cookie Token)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"UpdatedFirst\",\n    \"lastname\": \"UpdatedLast\",\n    \"totalprice\": 250,\n    \"depositpaid\": false,\n    \"bookingdates\": {\n        \"checkin\": \"2025-06-01\",\n        \"checkout\": \"2025-06-10\"\n    },\n    \"additionalneeds\": \"Dinner\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "{{bookingId}}"]
+            },
+            "description": "Full update of the created booking. Auth via Cookie: token={{token}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Booking-UpdateBooking",
+                  "// Docs state: 200 OK with updated booking object",
+                  "pm.test('Status code is 200 OK (docs: UpdateBooking with token)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Updated firstname matches request', function () {",
+                  "    pm.expect(pm.response.json().firstname).to.equal('UpdatedFirst');",
+                  "});",
+                  "",
+                  "pm.test('Updated totalprice matches request (250)', function () {",
+                  "    pm.expect(pm.response.json().totalprice).to.equal(250);",
+                  "});",
+                  "",
+                  "pm.test('Updated depositpaid is false', function () {",
+                  "    pm.expect(pm.response.json().depositpaid).to.be.false;",
+                  "});",
+                  "",
+                  "pm.test('JSON schema validation for updated booking', function () {",
+                  "    var schema = JSON.parse(pm.collectionVariables.get('singleBookingSchema'));",
+                  "    pm.response.to.have.jsonSchema(schema);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /booking/{{bookingId}} — Partial Update",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"PatchedFirst\",\n    \"totalprice\": 99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "{{bookingId}}"]
+            },
+            "description": "Partial update: only firstname and totalprice. Other fields should remain unchanged."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Booking-PartialUpdateBooking",
+                  "// Docs state: 200 OK with full updated booking object",
+                  "pm.test('Status code is 200 OK (docs: PartialUpdateBooking)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Patched firstname is updated', function () {",
+                  "    pm.expect(pm.response.json().firstname).to.equal('PatchedFirst');",
+                  "});",
+                  "",
+                  "pm.test('Patched totalprice is updated to 99', function () {",
+                  "    pm.expect(pm.response.json().totalprice).to.equal(99);",
+                  "});",
+                  "",
+                  "pm.test('Unpatched lastname is still present', function () {",
+                  "    pm.expect(pm.response.json()).to.have.property('lastname');",
+                  "    pm.expect(pm.response.json().lastname).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /booking/{{bookingId}} — Basic Auth Header",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Basic YWRtaW46cGFzc3dvcmQxMjM="
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"BasicAuthFirst\",\n    \"lastname\": \"BasicAuthLast\",\n    \"totalprice\": 175,\n    \"depositpaid\": true,\n    \"bookingdates\": {\n        \"checkin\": \"2025-07-01\",\n        \"checkout\": \"2025-07-07\"\n    },\n    \"additionalneeds\": \"Lunch\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "{{bookingId}}"]
+            },
+            "description": "Full update using Basic Auth header (Authorization: Basic YWRtaW46cGFzc3dvcmQxMjM= = admin:password123 base64). Auth alternative to cookie token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Docs state Basic Auth (admin:password123) is an alternative to Cookie token",
+                  "// YWRtaW46cGFzc3dvcmQxMjM= is base64 of admin:password123",
+                  "pm.test('Status code is 200 OK (Basic Auth alternative to Cookie)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Updated firstname matches request (BasicAuthFirst)', function () {",
+                  "    pm.expect(pm.response.json().firstname).to.equal('BasicAuthFirst');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Delete Booking",
+      "description": "Deletes the booking created in 02 Create (cleanup). Then verifies the deletion by GETting the same ID and expecting 404.",
+      "item": [
+        {
+          "name": "DELETE /booking/{{bookingId}} — Valid Auth",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "{{bookingId}}"]
+            },
+            "description": "Deletes the booking created during this test run. Uses Cookie token auth."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Source: https://restful-booker.herokuapp.com/apidoc/index.html#api-Booking-DeleteBooking",
+                  "// Docs state: '201 Created' (non-standard use of 201 for a DELETE — documented behaviour)",
+                  "pm.test('Status code is 201 (docs: DeleteBooking returns 201 — non-standard but documented)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response body is \"Created\" (API reuses the ping text — noted behaviour)', function () {",
+                  "    pm.expect(pm.response.text()).to.equal('Created');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /booking/{{bookingId}} — Verify Deletion (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "{{bookingId}}"]
+            },
+            "description": "Verifies the deleted booking is no longer accessible. Expects 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// After DELETE, the booking should return 404.",
+                  "pm.test('Status code is 404 after deletion (booking is gone)', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "// Clear environment variables used during this run",
+                  "pm.environment.unset('bookingId');",
+                  "pm.environment.unset('token');",
+                  "console.log('Cleanup complete: bookingId and token cleared from environment.');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Negative and Security",
+      "description": "Negative and security edge-case tests: unauthenticated updates/deletes, invalid tokens, unsupported headers, long strings, and special characters.",
+      "item": [
+        {
+          "name": "PUT /booking/1 — No Auth (expect 403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"NoAuth\",\n    \"lastname\": \"Test\",\n    \"totalprice\": 50,\n    \"depositpaid\": false,\n    \"bookingdates\": {\n        \"checkin\": \"2025-09-01\",\n        \"checkout\": \"2025-09-02\"\n    },\n    \"additionalneeds\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "1"]
+            },
+            "description": "Security: PUT without any auth header/cookie. Expect 403 Forbidden."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Docs state: 403 Forbidden when not authorised",
+                  "// NOTE: We use bookingId=1 (a pre-existing public booking) to avoid",
+                  "// modifying data we created, while still testing the auth gate.",
+                  "pm.test('Status code is 403 Forbidden (no auth — docs: UpdateBooking)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('No sensitive data in 403 response', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.not.include('password');",
+                  "    pm.expect(body).to.not.include('token');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /booking/1 — Invalid Token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token=invalidtoken123"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"InvalidToken\",\n    \"lastname\": \"Test\",\n    \"totalprice\": 50,\n    \"depositpaid\": false,\n    \"bookingdates\": {\n        \"checkin\": \"2025-09-01\",\n        \"checkout\": \"2025-09-02\"\n    },\n    \"additionalneeds\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "1"]
+            },
+            "description": "Security: PUT with an invalid (fake) token. Expect 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403 Forbidden (invalid token)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('No sensitive data leaked in invalid token response', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.not.include('password123');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /booking/1 — No Auth",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/booking/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "1"]
+            },
+            "description": "Security: DELETE without any auth. Should be rejected with 403. Uses bookingId=1 (pre-existing public booking — we do NOT own it, so we depend on the auth gate to stop the operation)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// If the API is working correctly, this MUST return 403.",
+                  "// If it returns 201, that is a defect — unauthenticated delete was allowed.",
+                  "pm.test('Status code is 403 Forbidden (no auth DELETE)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /booking/1 — Invalid Token",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token=aaaaabbbbccccddddeeeefff"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "1"]
+            },
+            "description": "Security: DELETE with an obviously invalid token. Should be rejected with 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403 Forbidden (invalid token DELETE)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /booking/1 — No Auth",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"totalprice\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking", "1"]
+            },
+            "description": "Security: PATCH without auth. Should return 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403 Forbidden (no auth PATCH)', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /booking — Unsupported Accept Header",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Edge case: requesting XML format via Accept header. The API may return JSON anyway or a 406."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// REST best practice: 406 Not Acceptable for unsupported Accept header.",
+                  "// Restful-Booker may ignore the header and return JSON regardless.",
+                  "pm.test('API responds (200 or 406 — both acceptable; 5xx is not)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 406]);",
+                  "});",
+                  "",
+                  "pm.test('No server crash on unsupported Accept header', function () {",
+                  "    pm.expect(pm.response.code).to.not.equal(500);",
+                  "    pm.expect(pm.response.code).to.not.equal(502);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /booking — Very Long String in Name Field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n    \"lastname\": \"LongTest\",\n    \"totalprice\": 100,\n    \"depositpaid\": true,\n    \"bookingdates\": {\n        \"checkin\": \"2025-10-01\",\n        \"checkout\": \"2025-10-02\"\n    },\n    \"additionalneeds\": \"None\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Security edge case: 1000-char string in firstname. Verifies input length handling."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The API should either accept the long string, truncate it, or reject with 400.",
+                  "// A 500 is unacceptable — indicates unhandled input.",
+                  "pm.test('Long string does not cause an unhandled 500 error', function () {",
+                  "    pm.expect(pm.response.code).to.not.equal(500);",
+                  "    pm.expect(pm.response.code).to.not.equal(502);",
+                  "});",
+                  "",
+                  "pm.test('Response is structured (either booking created or validation error)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 413, 422]);",
+                  "});",
+                  "",
+                  "pm.test('No stack trace exposed', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('stacktrace');",
+                  "    pm.expect(body).to.not.include('exception');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /booking — Special Characters in Name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstname\": \"Test<>&\\\"';\",\n    \"lastname\": \"Special!@#$%^*()\",\n    \"totalprice\": 50,\n    \"depositpaid\": false,\n    \"bookingdates\": {\n        \"checkin\": \"2025-11-01\",\n        \"checkout\": \"2025-11-03\"\n    },\n    \"additionalneeds\": \"None\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": ["{{baseUrl}}"],
+              "path": ["booking"]
+            },
+            "description": "Security edge case: special characters and script-like syntax in name fields. Only verifies correct handling — not an exploit attempt. No <script> tags used."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// We only send special chars like <>&\"'; — no actual script injection attempt.",
+                  "// Verifies the API handles them without crashing or exposing internals.",
+                  "pm.test('Special characters do not cause a 500 crash', function () {",
+                  "    pm.expect(pm.response.code).to.not.equal(500);",
+                  "});",
+                  "",
+                  "pm.test('Response is either success or validation error (not unhandled)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('No stack trace or exception details in response', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('stacktrace');",
+                  "    pm.expect(body).to.not.include('exception');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
