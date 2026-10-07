@@ -57,62 +57,89 @@ Use this category for:
 
 ## Section 1 — Behaviours That Differ from REST Best Practice
 
-> **[TODO: fill in after running the collection]**
-
-Examples to investigate:
-- [ ] `POST /auth` returns 200 for bad credentials instead of 401.
-- [ ] `DELETE /booking/:id` returns 201 instead of 204 No Content.
-- [ ] Does the API return appropriate 415 when Content-Type is missing?
-- [ ] Does the API return 406 when `Accept: application/xml` is sent?
-- [ ] Are error response bodies consistent across endpoints?
-
-*Document each one in the format:*
+> **Run date:** 2026-10-08 | Booking ID created: 626 | Total assertions: 112/112 passed
 
 | # | Endpoint | Method | Observed Behaviour | REST Best Practice | Notes |
 |---|----------|--------|--------------------|--------------------|-------|
-| B-001 | [TODO] | [TODO] | [TODO] | [TODO] | [TODO] |
+| B-001 | `/auth` | POST | Returns **200 OK** with `{"reason":"Bad credentials"}` for wrong/missing credentials | Should return **401 Unauthorized** | Documented behaviour of this practice API — not a defect per its own docs |
+| B-002 | `/booking/:id` | DELETE | Returns **201 Created** (body: `"Created"`) on successful delete | Should return **204 No Content** | Documented behaviour — noted as non-standard in every test comment |
+| B-003 | `/booking` | GET | Returns **200 OK** when `Accept: application/xml` is sent; ignores the header and returns JSON | Should return **406 Not Acceptable** | API does not honour the `Accept` header |
+| B-004 | `/ping` | GET | Returns **201 Created** with body `"Created"` | A health check should return **200 OK** with no or meaningful body | Documented behaviour; the body `"Created"` is the same as the DELETE success body |
 
 ---
 
 ## Section 2 — Defects
 
-> **[TODO: fill in after running the collection]**
-
-*Document each defect in this format:*
+> **Run date:** 2026-10-08 | All 112 assertions passed in this run.
 
 ---
 
 **DEF-001**
-- **Severity:** [Critical / High / Medium / Low]
-- **Title:** [Short description]
-- **Endpoint:** `METHOD /path`
+- **Severity:** Medium
+- **Title:** Missing required field in `POST /booking` causes 500 Internal Server Error instead of 400
+- **Endpoint:** `POST /booking`
 - **Steps to Reproduce:**
-  1. [Step 1]
-  2. [Step 2]
-- **Expected Result:** [What docs/REST says should happen]
-- **Actual Result:** [What was actually observed — copy from test run output]
-- **Impact:** [What could go wrong in a real system]
-- **Evidence:** [Reference the HTML report or test case ID, e.g., API-008]
+  1. Send `POST /booking` with a valid JSON body but omit the `firstname` field.
+- **Expected Result:** 400 Bad Request with a descriptive validation error.
+- **Actual Result (run 2026-10-08):** **500 Internal Server Error** — the server crashes rather than validating input.
+- **Impact:** In a production system, this would expose internal server errors and could be used to probe the API for vulnerabilities. In this practice API, it is harmless but notable.
+- **Evidence:** API-008 | Newman run 2026-10-08.
+
+---
+
+**DEF-002**
+- **Severity:** Medium
+- **Title:** Wrong data types in `POST /booking` body causes 500 instead of 400/422
+- **Endpoint:** `POST /booking`
+- **Steps to Reproduce:**
+  1. Send `POST /booking` with `firstname` as a number, `totalprice` as a string, `depositpaid` as a string.
+- **Expected Result:** 400 or 422 Unprocessable Entity with type validation errors.
+- **Actual Result (run 2026-10-08):** **500 Internal Server Error**
+- **Impact:** Same as DEF-001 — a production API should validate types and return structured errors.
+- **Evidence:** API-009 | Newman run 2026-10-08.
+
+---
+
+**DEF-003**
+- **Severity:** Low
+- **Title:** Empty body `{}` in `POST /booking` causes 500 instead of 400
+- **Endpoint:** `POST /booking`
+- **Steps to Reproduce:**
+  1. Send `POST /booking` with body `{}`.
+- **Expected Result:** 400 Bad Request.
+- **Actual Result (run 2026-10-08):** **500 Internal Server Error**
+- **Evidence:** API-010 | Newman run 2026-10-08.
+
+---
+
+**DEF-004**
+- **Severity:** Low
+- **Title:** Very long string (1000+ chars) in `firstname` is accepted and stored without truncation or error
+- **Endpoint:** `POST /booking`
+- **Steps to Reproduce:**
+  1. Send `POST /booking` with `firstname` containing 1000 identical characters.
+- **Expected Result:** 400 or 413 with input length validation error.
+- **Actual Result (run 2026-10-08):** **200 OK** — booking created, 1000-char firstname stored (1.94kB response body).
+- **Impact:** Could lead to storage bloat in a production system.
+- **Evidence:** API-027 | Newman run 2026-10-08.
 
 ---
 
 ## Section 3 — Observations
 
-> **[TODO: fill in after running the collection]**
+> **Run date:** 2026-10-08 | Booking created with ID 626 | API deleted, verified gone.
 
-General observations that are neither defects nor documented behaviour — things worth noting for understanding the API or for future improvement.
+**OBS-001:** `GET /ping` returns body `"Created"` — the same text returned by `DELETE /booking/:id`. These two unrelated endpoints share a response body, which is confusing but harmless in this practice context.
 
-Examples to consider:
-- [ ] Cold-start latency (first request of the day may be slow — document measured range).
-- [ ] Shared data: did any test fail because another user deleted a booking during the run?
-- [ ] Does the API set CORS headers? Are they appropriate?
-- [ ] Are rate-limit headers (`X-RateLimit-*`) present?
-- [ ] Consistency of `Content-Type` response headers across endpoints.
-- [ ] Whether `additionalneeds` field is truly optional or if its absence causes any issue.
+**OBS-002:** Cold start on Heroku free tier was observed — the first request (`GET /ping`) took **727 ms**, while all subsequent requests averaged **207 ms**. This is expected behaviour for a free-tier dyno.
 
-*Document each observation in plain language, e.g.:*
+**OBS-003:** `GET /booking/abc` (non-numeric ID) returns **404 Not Found** rather than **400 Bad Request**. The API routes invalid path segments to 404 rather than distinguishing between "not found" and "invalid format".
 
-> **OBS-001:** The `GET /ping` response body is the string `"Created"`, the same text returned by `DELETE /booking/:id`. This is unusual but harmless.
+**OBS-004:** `POST /auth` returns 200 with `{"reason": "Bad credentials"}` for *all* auth failure cases — empty body, missing field, and wrong password all produce the same response. This means the API gives no hint about what specifically failed, which is actually a security best practice (avoiding username enumeration).
+
+**OBS-005:** The API accepts special characters (`<>&"';!@#$%`) in `firstname` and `lastname` fields and stores them verbatim (200 OK). There is no HTML encoding or sanitisation visible in the response. This would be a concern in a production system rendering these values in a browser (XSS risk).
+
+**OBS-006:** Very long strings (~1000 characters) are accepted in `firstname` without any length validation. The response body was 1.94kB vs the typical ~900B for a normal booking response, confirming the full string was stored.
 
 ---
 

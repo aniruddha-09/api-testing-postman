@@ -148,19 +148,21 @@ This runs the full collection **once per CSV row** (8 iterations), substituting 
 
 ## Results
 
-> **[TODO: paste real summary table here after running `npm run test:report`]**
+✅ **Real run completed on 2026-10-08 against https://restful-booker.herokuapp.com**
 
-Example format to fill in:
+| Metric | Value |
+|--------|-------|
+| Iterations | 1 |
+| Requests | 28 |
+| Assertions | **112** |
+| Failures | **0** |
+| Total Duration | 8.9 s |
+| Avg Response Time | 227 ms |
+| Min / Max Response | 206 ms / 727 ms |
+| Data Received | 19.55 kB |
 
-```
-Total requests:    28
-Passed:            ??
-Failed:            ??
-Skipped:           ??
-Duration:          ??s
-```
-
-> **[TODO: link to the sample HTML report once generated: `reports/newman-report.html`]**
+> 📄 **[View the HTML report: `reports/newman-report.html`](reports/newman-report.html)**  
+> Open the file locally in any browser after cloning the repo.
 
 ---
 
