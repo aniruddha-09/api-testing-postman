@@ -1,6 +1,6 @@
 # Restful-Booker API Test Suite
 
-> A production-ready API testing portfolio project by **Aniruddha Yadav** (QA Engineer)
+> A production-ready API testing portfolio project.
 
 [![Newman CI](https://img.shields.io/badge/Newman-CLI-brightgreen?logo=postman)](https://www.npmjs.com/package/newman)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -205,7 +205,7 @@ This test suite interacts with a **free, shared public API**. I've taken the fol
 ## Contact
 
 - 💼 **LinkedIn:** [linkedin.com/in/aniruddhayadav12](https://linkedin.com/in/aniruddhayadav12)
-- 🌐 **Portfolio:** [aniruddhayadav.in](https://aniruddhayadav.in)
+
 
 ---
 
