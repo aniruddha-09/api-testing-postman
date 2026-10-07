@@ -1,0 +1,41 @@
+name: Newman API Tests
+
+on:
+  # Manual trigger — run on demand from the Actions tab
+  workflow_dispatch:
+
+  # Push to main only — not on a schedule, to avoid hammering a free public API
+  push:
+    branches:
+      - main
+
+jobs:
+  newman-test:
+    name: Run Restful-Booker Newman Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Newman test suite with HTML report
+        # NOTE: continue-on-error is intentionally NOT set here.
+        # If tests fail, the workflow step will fail and the run will be marked red.
+        # This is the intended behaviour — failures must be visible.
+        run: npm run test:report
+
+      - name: Upload Newman report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-report-${{ github.run_number }}
+          path: reports/
+          retention-days: 30
