@@ -1,0 +1,31 @@
+{
+  "name": "api-testing-postman",
+  "version": "1.0.0",
+  "description": "Restful-Booker API test suite using Postman Collections and Newman. Built as a QA portfolio project by Aniruddha Yadav.",
+  "author": "Aniruddha Yadav <aniruddha@example.com>",
+  "license": "MIT",
+  "keywords": [
+    "api-testing",
+    "postman",
+    "newman",
+    "restful-booker",
+    "qa",
+    "quality-assurance"
+  ],
+  "scripts": {
+    "test": "newman run collections/restful-booker.postman_collection.json -e environments/restful-booker.postman_environment.json",
+    "test:report": "newman run collections/restful-booker.postman_collection.json -e environments/restful-booker.postman_environment.json -r cli,htmlextra --reporter-htmlextra-export reports/newman-report.html",
+    "test:data": "newman run collections/restful-booker.postman_collection.json -e environments/restful-booker.postman_environment.json --iteration-data data/bookings.csv -r cli,htmlextra --reporter-htmlextra-export reports/newman-data-report.html"
+  },
+  "devDependencies": {
+    "newman": "^6",
+    "newman-reporter-htmlextra": "^1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aniruddhayadav12/api-testing-postman"
+  }
+}
